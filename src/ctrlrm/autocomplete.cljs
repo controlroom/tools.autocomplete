@@ -4,25 +4,13 @@
             [show.core :as show :include-macros true]
             [show.dom  :as dom  :include-macros true]))
 
-(defn input-key-down [component key-event]
-  (case (.-keyCode key-event)
-    40 ((show/get-props component :handle-hover-change) inc)
-    38 ((show/get-props component :handle-hover-change) dec)
-    13 ((show/get-props component :handle-enter-key))
-    nil))
-
 (show/defclass DefaultInput [component]
-  (render [{:keys [value handle-change handle-blur handle-focus]} _]
-    (dom/input {:type         "text"
-                :autoComplete "off"
-                :spellCheck   "false"
-                :value        value
-                :onBlur       #(js/setTimeout
-                                 (fn [] (handle-blur component))
-                                 100)
-                :onFocus      #(handle-focus component)
-                :onKeyDown    #(input-key-down component %)
-                :onChange     #(handle-change (.. % -target -value))})))
+  (render [{:keys [local-wire value]} _]
+    (wired/input local-wire
+                 {:type         "text"
+                  :autoComplete "off"
+                  :spellCheck   "false"
+                  :value        value})))
 
 (show/defclass DefaultItem [component]
   (render [{:keys [item]} _]
@@ -30,15 +18,15 @@
 
 (show/defclass DefaultResults [component]
   (render [{:keys [items item-component value highlight-index active
-                   handle-selected-item]}
+                   local-wire]}
            state]
     (dom/ul {:className (show/class-map {"empty" (or (not active) (empty? items))})}
       (map-indexed
         (fn [idx item]
-          (dom/li {:className (show/class-map {"selected" (= idx highlight-index)})
-                   :onClick #(handle-selected-item item)}
-                  (item-component (merge {:value value}
-                                         (if (map? item) item {:item item})))))
+          (wired/li (w/lay local-wire nil {:item item})
+                    {:className (show/class-map {"selected" (= idx highlight-index)})}
+                    (item-component (merge {:value value}
+                                           (if (map? item) item {:item item})))))
         items))))
 
 (defn autocomplete-fn [text result-fn]
@@ -86,42 +74,51 @@
     (if (not (empty? results))
       (selection component (nth results highlight-index)))))
 
+(defn input-wire [component]
+  (w/taps (w/wire)
+    {:action :focus} #(show component)
+    {:action :blur} #(hide component)
+    {:action :change} #(input-change component (:value %))
+    {:action :up :keypress :enter} #(enter-key component)
+    {:action :up :keypress :up-arrow} #(hover-change component dec)
+    {:action :up :keypress :down-arrow} #(hover-change component inc)))
+
+(defn results-wire [component]
+  (w/taps (w/wire)
+    {:event :mouse-click} #(selection component (:item %))))
+
 (show/defclass Autocomplete
   "Can do some autocomplete here son"
   [component]
   (default-props []
-    {:input-component     DefaultInput
+    {:wire                (w/wire)
+     :input-component     DefaultInput
      :results-component   DefaultResults
      :item-component      DefaultItem
      :results-fn          autocomplete-fn
      :result-selection-fn identity
      :parent-class-name   "autocomplete"})
-
   (initial-state []
-    {:value     (or (show/get-props component :value) "")
-     :results   []
-     :loading   false
+    {:value      (or (show/get-props component :value) "")
+     :results    []
+     :loading    false
      :highlight-index 0
-     :active    false})
-
-  (render [{:keys [parent-class-name input-component results-component
-                   item-component] :as params}
-           {:keys [value results highlight-index active] :as state}]
+     :active     false})
+  (render [{:as params
+            :keys [parent-class-name input-component results-component
+                   item-component]}
+           {:as state
+            :keys [value results highlight-index active]}]
     (dom/div {:key "parent" :className parent-class-name}
       (input-component
-        {:key "input"
-         :value value
-         :handle-blur (partial hide component)
-         :handle-focus (partial show component)
-         :handle-selected-item (partial selection component)
-         :handle-hover-change (partial hover-change component)
-         :handle-enter-key (partial enter-key component)
-         :handle-change (partial input-change component)})
+        {:local-wire (input-wire component)
+         :key "input"
+         :value value})
       (results-component
-        {:key "results"
+        {:local-wire (results-wire component)
+         :key "results"
          :items results
          :value value
          :highlight-index highlight-index
          :item-component item-component
-         :active active
-         :handle-selected-item (partial selection component)}))))
+         :active active}))))
