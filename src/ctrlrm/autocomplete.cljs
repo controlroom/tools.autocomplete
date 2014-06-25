@@ -1,8 +1,8 @@
 (ns ctrlrm.autocomplete
-  (:require [wire.core :as w]
+  (:require [wire.core    :as w]
             [wire.up.show :as wired :include-macros true]
-            [show.core :as show :include-macros true]
-            [show.dom  :as dom  :include-macros true]))
+            [show.core    :as show :include-macros true]
+            [show.dom     :as dom  :include-macros true]))
 
 (show/defclass DefaultInput [component]
   (render [{:keys [local-wire value]} _]
@@ -20,11 +20,13 @@
   (render [{:keys [items item-component value highlight-index active
                    local-wire]}
            state]
-    (dom/ul {:className (show/class-map {"empty" (or (not active) (empty? items))})}
+    (dom/ul {:className
+             (show/class-map {"empty" (or (not active) (empty? items))})}
       (map-indexed
         (fn [idx item]
           (wired/li (w/lay local-wire nil {:item item})
-                    {:className (show/class-map {"selected" (= idx highlight-index)})}
+                    {:key (or (:id item) idx)
+                     :className (show/class-map {"selected" (= idx highlight-index)})}
                     (item-component (merge {:value value}
                                            (if (map? item) item {:item item})))))
         items))))
@@ -33,15 +35,15 @@
   (result-fn [(str text ", really?") "implement" "your" "own" "autocomplete-fn"]))
 
 (defn recieve-results [component results]
-  (doto component
-    (show/assoc! :results results)
-    (show/assoc! :loading false)))
+  (show/assoc! component
+               :results results
+               :loading false))
 
 (defn has-new-value [component value]
   (let [results-fn (show/get-props component :results-fn)]
-    (doto component
-      (show/assoc! :value value)
-      (show/assoc! :loading true))
+    (show/assoc! component
+                 :value value
+                 :loading true)
     (results-fn value (partial recieve-results component))) )
 
 (defn has-empty-value [component]
@@ -56,7 +58,7 @@
     (has-new-value component value)))
 
 (defn hover-change [component fn]
-  (show/update! component :highlight-index fn))
+  (show/update-in! component :highlight-index fn))
 
 (defn hide [component]
   (show/assoc! component :active false))
@@ -65,9 +67,11 @@
   (show/assoc! component :active true))
 
 (defn selection [component item]
-  (show/assoc! component :results [])
-  (show/assoc! component :value
-               ((show/get-props component :result-selection-fn) item)))
+  (w/act (show/get-props component :wire) :ac-selected {:ac-item item})
+  (show/assoc! component
+               :results []
+               :value ""
+               :selected ((show/get-props component :result-selection-fn) item)))
 
 (defn enter-key [component]
   (let [{:keys [results highlight-index]} (show/get-state component)]
@@ -76,16 +80,16 @@
 
 (defn input-wire [component]
   (w/taps (w/wire)
-    {:action :focus} #(show component)
-    {:action :blur} #(hide component)
-    {:action :change} #(input-change component (:value %))
-    {:action :up :keypress :enter} #(enter-key component)
-    {:action :up :keypress :up-arrow} #(hover-change component dec)
-    {:action :up :keypress :down-arrow} #(hover-change component inc)))
+    {:key :focus-focus} #(show component)
+    {:key :focus-blur} #(hide component)
+    {:key :form-change} #(input-change component (:value %))
+    {:key :keyboard-up :keypress :enter} #(enter-key component)
+    {:key :keyboard-up :keypress :up-arrow} #(hover-change component dec)
+    {:key :keyboard-up :keypress :down-arrow} #(hover-change component inc)))
 
 (defn results-wire [component]
   (w/taps (w/wire)
-    {:event :mouse-click} #(selection component (:item %))))
+    {:key :mouse-click} #(selection component (:item %))))
 
 (show/defclass Autocomplete
   "Can do some autocomplete here son"
@@ -102,18 +106,20 @@
     {:value      (or (show/get-props component :value) "")
      :results    []
      :loading    false
+     :selected   nil
      :highlight-index 0
      :active     false})
   (render [{:as params
             :keys [parent-class-name input-component results-component
                    item-component]}
            {:as state
-            :keys [value results highlight-index active]}]
+            :keys [value selected results highlight-index active]}]
     (dom/div {:key "parent" :className parent-class-name}
       (input-component
         {:local-wire (input-wire component)
          :key "input"
-         :value value})
+         :value value
+         :selected selected})
       (results-component
         {:local-wire (results-wire component)
          :key "results"
