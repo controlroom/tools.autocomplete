@@ -80,9 +80,9 @@
 
 (defn input-wire [component]
   (w/taps (w/wire)
-    {:key :focus-focus} #(show component)
-    {:key :focus-blur} #(hide component)
-    {:key :form-change} #(input-change component (:value %))
+    :focus-focus #(show component)
+    :focus-blur  #(hide component)
+    :form-change #(input-change component (:value %))
     {:key :keyboard-up :keypress :enter} #(enter-key component)
     {:key :keyboard-up :keypress :up-arrow} #(hover-change component dec)
     {:key :keyboard-up :keypress :down-arrow} #(hover-change component inc)))
