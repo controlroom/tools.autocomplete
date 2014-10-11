@@ -18,18 +18,20 @@
 
 (show/defclass DefaultResults [component]
   (render [{:keys [items item-component value highlight-index active
-                   local-wire]}
+                   local-wire results-mod-fn]}
            state]
     (dom/ul {:className
-             (show/class-map {"empty" (or (not active) (empty? items))})}
-      (map-indexed
-        (fn [idx item]
+             (show/class-map
+               {"autocomplete-results" true
+                "empty" (or (not active) (empty? items))})}
+      (map
+        (fn [[idx item]]
           (wired/li (w/lay local-wire nil {:item item})
                     {:key (or (:id item) idx)
                      :className (show/class-map {"selected" (= idx highlight-index)})}
                     (item-component (merge {:value value}
                                            (if (map? item) item {:item item})))))
-        items))))
+        (results-mod-fn (map vector (range) items))))))
 
 (defn autocomplete-fn [text result-fn]
   (result-fn [(str text ", really?") "implement" "your" "own" "autocomplete-fn"]))
@@ -57,8 +59,12 @@
     (has-empty-value component)
     (has-new-value component value)))
 
-(defn hover-change [component fn]
-  (show/update-in! component :highlight-index fn))
+(defn hover-change [component f]
+  (show/update-in! component :highlight-index
+                   (fn [current-index]
+                     (min
+                       (dec (count (show/get-state component :results)))
+                       (max 0 (f current-index))))))
 
 (defn hide [component]
   (show/assoc! component :active false))
@@ -83,9 +89,13 @@
     :focus-focus #(show component)
     :focus-blur  #(hide component)
     :form-change #(input-change component (:value %))
+    {:key :keyboard-up :keypress :esc} #(do (input-change component "")
+                                            (hide component))
     {:key :keyboard-up :keypress :enter} #(enter-key component)
-    {:key :keyboard-up :keypress :up-arrow} #(hover-change component dec)
-    {:key :keyboard-up :keypress :down-arrow} #(hover-change component inc)))
+    {:key :keyboard-up :keypress :up-arrow} #(hover-change component
+                                                           (show/get-state component :up-arrow-fn))
+    {:key :keyboard-up :keypress :down-arrow} #(hover-change component
+                                                             (show/get-state component :down-arrow-fn))))
 
 (defn results-wire [component]
   (w/taps (w/wire)
@@ -100,20 +110,32 @@
      :results-component   DefaultResults
      :item-component      DefaultItem
      :results-fn          autocomplete-fn
-     :result-selection-fn identity
-     :parent-class-name   "autocomplete"})
+     :result-selection-fn identity})
+  (will-mount []
+    (when (= :above (show/get-props component :direction))
+      (show/assoc! component
+                   :results-mod-fn reverse
+                   :up-arrow-fn inc
+                   :down-arrow-fn dec)
+      (show/update-in! component [:parent-class-name]
+                       #(str % " above"))))
   (initial-state []
     {:value      (or (show/get-props component :value) "")
      :results    []
      :loading    false
      :selected   nil
      :highlight-index 0
-     :active     false})
+     :active     false
+
+     :results-mod-fn    (or (show/get-props component :results-mod-fn) identity)
+     :up-arrow-fn       (or (show/get-props component :up-arrow-fn) dec)
+     :down-arrow-fn     (or (show/get-props component :down-arrow-fn) inc)
+     :parent-class-name (or (show/get-props component :parent-class-name) "autocomplete")})
   (render [{:as params
-            :keys [parent-class-name input-component results-component
-                   item-component]}
+            :keys [input-component results-component item-component ]}
            {:as state
-            :keys [value selected results highlight-index active]}]
+            :keys [parent-class-name value selected results highlight-index active
+                   results-mod-fn]}]
     (dom/div {:key "parent" :className parent-class-name}
       (input-component
         {:local-wire (input-wire component)
@@ -125,6 +147,7 @@
          :key "results"
          :items results
          :value value
+         :results-mod-fn results-mod-fn
          :highlight-index highlight-index
          :item-component item-component
          :active active}))))
