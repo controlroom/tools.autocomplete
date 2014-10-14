@@ -79,7 +79,7 @@
                :value ""
                :selected ((show/get-props component :result-selection-fn) item)))
 
-(defn enter-key [component]
+(defn complete [component]
   (let [{:keys [results highlight-index]} (show/get-state component)]
     (if (not (empty? results))
       (selection component (nth results highlight-index)))))
@@ -89,14 +89,22 @@
     :focus-focus #(show component)
     :focus-blur  #(hide component)
     :form-change #(input-change component (:value %))
-    {:key :keyboard-up :keypress :esc} #(do (input-change component "")
-                                            (hide component))
-    {:key :keyboard-up :keypress :enter} #(enter-key component)
-    {:key :keyboard-up :keypress :up-arrow} #(hover-change component
-                                                           (show/get-state component :up-arrow-fn))
-    {:key :keyboard-up :keypress :down-arrow} #(hover-change component
-                                                             (show/get-state component :down-arrow-fn))))
-
+    :keyboard-down
+      (fn [evt]
+        (case (get-in evt [:criteria :keypress])
+          :tab (if (show/get-props component :tab-insert) (complete component))
+          :enter (complete component)
+          nil))
+    :keyboard-up
+      (fn [evt]
+        (case (get-in evt [:criteria :keypress])
+          :esc (do (input-change component "")
+                   (hide component))
+          :up-arrow (hover-change component
+                                  (show/get-state component :up-arrow-fn))
+          :down-arrow (hover-change component
+                                    (show/get-state component :down-arrow-fn))
+          nil))))
 (defn results-wire [component]
   (w/taps (w/wire)
     {:key :mouse-click} #(selection component (:item %))))
@@ -110,6 +118,7 @@
      :results-component   DefaultResults
      :item-component      DefaultItem
      :results-fn          autocomplete-fn
+     :tab-insert          false
      :result-selection-fn identity})
   (will-mount []
     (when (= :above (show/get-props component :direction))
