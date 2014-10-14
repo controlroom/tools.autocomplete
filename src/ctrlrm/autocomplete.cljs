@@ -100,7 +100,8 @@
   (show/assoc! component :active true))
 
 (defn selection [component item]
-  (w/act (show/get-props component :wire) :ac-selected {:ac-item item})
+  (w/act (show/get-props component :wire) :ac-selected
+         {:ac-item (second item)})
   (show/assoc! component
                :results []
                :value ""
