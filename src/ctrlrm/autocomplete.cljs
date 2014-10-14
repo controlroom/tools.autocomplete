@@ -56,7 +56,7 @@
                                         idx 0
                                         final []]
                                    (if-not (seq res)
-                                     (into [] final)
+                                     final
                                      (let [[group items] (first res)]
                                        (recur (rest res)
                                               (+ idx (count items))
