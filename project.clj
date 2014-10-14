@@ -17,4 +17,11 @@
                  :output-to  "examples/local/main.js"
                  :optimizations  :none
                  :output-wrapper false
+                 :source-map     true }}
+     {:id "grouped"
+      :source-paths ["examples/grouped/src" "src"]
+      :compiler {:output-dir "examples/grouped/out"
+                 :output-to  "examples/grouped/main.js"
+                 :optimizations  :none
+                 :output-wrapper false
                  :source-map     true }}]})

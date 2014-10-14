@@ -1,0 +1,30 @@
+.autocomplete input {
+  width: 400px;
+  padding: 5px;
+}
+
+.autocomplete ul.empty {
+  display: none;
+}
+
+.autocomplete ul {
+  width: 400px;
+  padding: 0px;
+  margin: 0px;
+  border: 1px solid #aaa;
+  border-top: 0px;
+}
+
+.autocomplete li {
+  padding: 5px;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.autocomplete ul :last-child {
+  border-bottom: 0px;
+}
+
+.autocomplete li:hover, .autocomplete li.selected {
+  background-color: #e8e8e8;
+  cursor: pointer;
+}

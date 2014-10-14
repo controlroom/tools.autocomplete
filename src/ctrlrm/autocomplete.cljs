@@ -12,13 +12,17 @@
                   :spellCheck   "false"
                   :value        value})))
 
+(show/defclass DefaultHeader [component]
+  (render [{:keys [title]} state]
+    (dom/h3 title)))
+
 (show/defclass DefaultItem [component]
   (render [{:keys [item]} _]
     (dom/p item)))
 
 (show/defclass DefaultResults [component]
   (render [{:keys [items item-component value highlight-index active
-                   local-wire results-mod-fn]}
+                   local-wire results-mod-fn header-component]}
            state]
     (dom/ul {:className
              (show/class-map
@@ -26,20 +30,43 @@
                 "empty" (or (not active) (empty? items))})}
       (map
         (fn [[idx item]]
-          (wired/li (w/lay local-wire nil {:item item})
-                    {:key (or (:id item) idx)
-                     :className (show/class-map {"selected" (= idx highlight-index)})}
-                    (item-component (merge {:value value}
-                                           (if (map? item) item {:item item})))))
-        (results-mod-fn (map vector (range) items))))))
+          (if idx
+            (wired/li (w/lay local-wire nil {:item item})
+                      {:key (or (:id item) idx)
+                       :className (show/class-map {"selected" (= idx highlight-index)})}
+                      (item-component (merge {:value value}
+                                             (if (map? item) item {:item item}))))
+            (dom/li {:className "heading"}
+                    (header-component (if (map? item)
+                                        item
+                                        {:title item})))))
+        (results-mod-fn items)))))
 
 (defn autocomplete-fn [text result-fn]
   (result-fn [(str text ", really?") "implement" "your" "own" "autocomplete-fn"]))
 
-(defn recieve-results [component results]
-  (show/assoc! component
-               :results results
-               :loading false))
+(defn recieve-results
+  "We can recieve 2 types of results:
+  A sequence which represents items
+    or
+  A map of which represents groups of items"
+  [component results]
+  (let [results (cond
+                  (map? results) (loop [res results
+                                        idx 0
+                                        final []]
+                                   (if-not (seq res)
+                                     (into [] final)
+                                     (let [[group items] (first res)]
+                                       (recur (rest res)
+                                              (+ idx (count items))
+                                              (apply concat final
+                                                     [[nil group]]
+                                                     [(mapv vector (drop idx (range)) items)])))))
+                  :default (map vector (range) results))]
+    (show/assoc! component
+                 :results results
+                 :loading false)))
 
 (defn has-new-value [component value]
   (let [results-fn (show/get-props component :results-fn)]
@@ -117,6 +144,7 @@
      :input-component     DefaultInput
      :results-component   DefaultResults
      :item-component      DefaultItem
+     :header-component    DefaultHeader
      :results-fn          autocomplete-fn
      :tab-insert          false
      :result-selection-fn identity})
@@ -141,7 +169,8 @@
      :down-arrow-fn     (or (show/get-props component :down-arrow-fn) inc)
      :parent-class-name (or (show/get-props component :parent-class-name) "autocomplete")})
   (render [{:as params
-            :keys [input-component results-component item-component ]}
+            :keys [input-component results-component item-component
+                   header-component]}
            {:as state
             :keys [parent-class-name value selected results highlight-index active
                    results-mod-fn]}]
@@ -159,4 +188,5 @@
          :results-mod-fn results-mod-fn
          :highlight-index highlight-index
          :item-component item-component
+         :header-component header-component
          :active active}))))
