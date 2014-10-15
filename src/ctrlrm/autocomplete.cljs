@@ -45,6 +45,12 @@
 (defn autocomplete-fn [text result-fn]
   (result-fn [(str text ", really?") "implement" "your" "own" "autocomplete-fn"]))
 
+(defn order-groups [results]
+  (sort-by
+    (fn [[k v]]
+      (* -1 (:pos k)))
+    results))
+
 (defn receive-results
   "We can receive 2 types of results:
   A sequence which represents items
@@ -52,7 +58,7 @@
   A map of which represents groups of items"
   [component results]
   (let [results (cond
-                  (map? results) (loop [res results
+                  (map? results) (loop [res (order-groups results)
                                         idx 0
                                         final []]
                                    (if-not (seq res)
