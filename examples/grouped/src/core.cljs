@@ -18,13 +18,16 @@
              (range))))
 
 (defn local-ac-fn [text result-fn]
-  (result-fn
-    (group-by
-      (fn [{:keys [word]}]
-        (count word))
-      (take 5 (filter #(re-find (re-pattern (str "(?i)^" text))
-                                (:word %))
-                      random-words)))))
+  (if (= text "")
+    (result-fn [])
+    (result-fn
+      (group-by
+        (fn [{:keys [word]}]
+          {:title (count word)
+           :pos (- 100 (count word))})
+        (take 5 (filter #(re-find (re-pattern (str "(?i)^" text))
+                                  (:word %))
+                        random-words))))))
 
 (show/defclass RandomWordItem [component]
   (render [props _]

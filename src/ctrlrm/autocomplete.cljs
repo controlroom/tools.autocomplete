@@ -63,12 +63,15 @@
                                         final []]
                                    (if-not (seq res)
                                      final
-                                     (let [[group items] (first res)]
+                                     (let [[group items] (first res)
+                                           group-list [[nil group]]
+                                           item-list (mapv vector (drop idx (range)) items)
+                                           all-items (if (= :above (show/get-props component :direction))
+                                                       [item-list group-list]
+                                                       [group-list item-list])]
                                        (recur (rest res)
                                               (+ idx (count items))
-                                              (apply concat final
-                                                     [[nil group]]
-                                                     [(mapv vector (drop idx (range)) items)])))))
+                                              (apply concat final all-items)))))
                   :default (map vector (range) results))]
     (show/assoc! component
                  :results results
@@ -100,7 +103,7 @@
 
 (defn selection [component item]
   (w/act (show/get-props component :wire) :ac-selected
-         {:ac-item (second item)})
+         {:ac-item item})
   (show/assoc! component
                :results []
                :value ""
@@ -109,7 +112,12 @@
 (defn complete [component]
   (let [{:keys [results highlight-index]} (show/get-state component)]
     (if (not (empty? results))
-      (selection component (nth results highlight-index)))))
+      (selection component
+                 (->> results
+                      (filter
+                        #(= highlight-index (first %)))
+                      first
+                      second)))))
 
 (defn input-wire [component]
   (w/taps (w/wire)
