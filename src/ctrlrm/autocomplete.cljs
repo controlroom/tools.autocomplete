@@ -45,8 +45,8 @@
 (defn autocomplete-fn [text result-fn]
   (result-fn [(str text ", really?") "implement" "your" "own" "autocomplete-fn"]))
 
-(defn recieve-results
-  "We can recieve 2 types of results:
+(defn receive-results
+  "We can receive 2 types of results:
   A sequence which represents items
     or
   A map of which represents groups of items"
@@ -73,7 +73,7 @@
     (show/assoc! component
                  :value value
                  :loading true)
-    (results-fn value (partial recieve-results component))) )
+    (results-fn value (partial receive-results component))) )
 
 (defn input-change [component value]
   (show/assoc! component :highlight-index 0)
