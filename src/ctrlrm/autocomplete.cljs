@@ -75,16 +75,9 @@
                  :loading true)
     (results-fn value (partial recieve-results component))) )
 
-(defn has-empty-value [component]
-  (doto component
-    (show/assoc! :value "")
-    (show/assoc! :results [])))
-
 (defn input-change [component value]
   (show/assoc! component :highlight-index 0)
-  (if (= value "")
-    (has-empty-value component)
-    (has-new-value component value)))
+  (has-new-value component value))
 
 (defn hover-change [component f]
   (show/update-in! component :highlight-index
