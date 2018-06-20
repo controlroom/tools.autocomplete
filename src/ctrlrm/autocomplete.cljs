@@ -144,9 +144,7 @@
   (w/taps (w/wire)
     {:key :mouse-click} #(selection component (:item %))))
 
-(show/defclass Autocomplete
-  "Can do some autocomplete here son"
-  [component]
+(show/defclass Autocomplete [component]
   (default-props []
     {:wire                (w/wire)
      :input-component     DefaultInput
